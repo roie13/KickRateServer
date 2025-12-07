@@ -1,0 +1,6 @@
+@KickRateServer_HostAddress = http://localhost:5049
+
+GET {{KickRateServer_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
