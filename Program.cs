@@ -6,7 +6,7 @@ using KickRateServer.DTOs;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=kickrate.db"));
+    options.UseSqlite("Data Source=Data/kickrate.db"));
 
 builder.Services.AddCors(options =>
 {
@@ -54,11 +54,11 @@ app.MapPost("/auth/register", async (RegisterDto dto, AppDbContext db) =>
     db.Users.Add(user);
     await db.SaveChangesAsync();
 
-    return Results.Ok(new 
-    { 
-        id = user.Id, 
+    return Results.Ok(new
+    {
+        id = user.Id,
         username = user.Username,
-        message = "ההרשמה בוצעה בהצלחה" 
+        message = "ההרשמה בוצעה בהצלחה"
     });
 });
 
@@ -71,11 +71,11 @@ app.MapPost("/auth/login", async (LoginDto dto, AppDbContext db) =>
         return Results.BadRequest(new { message = "שם משתמש או סיסמה שגויים" });
     }
 
-    return Results.Ok(new 
-    { 
-        id = user.Id, 
+    return Results.Ok(new
+    {
+        id = user.Id,
         username = user.Username,
-        message = "התחברת בהצלחה" 
+        message = "התחברת בהצלחה"
     });
 });
 
