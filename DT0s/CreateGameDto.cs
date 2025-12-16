@@ -5,10 +5,10 @@ namespace KickRateServer.DTOs
     public class CreateGameDto
     {
         [Required]
-        public DateOnly GameDate { get; set; }
+        public string GameDate { get; set; } = string.Empty; // שנה ל-string
         
         [Required]
-        public TimeOnly GameTime { get; set; }
+        public string GameTime { get; set; } = string.Empty; // שנה ל-string
         
         [Required]
         [MaxLength(200)]
