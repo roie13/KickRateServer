@@ -8,10 +8,10 @@ namespace KickRateServer.Models
         public int Id { get; set; }
         
         [Required]
-        public DateOnly GameDate { get; set; }
+        public DateTime GameDate { get; set; }
         
         [Required]
-        public TimeOnly GameTime { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
         
         [Required]
         [MaxLength(200)]
@@ -20,8 +20,6 @@ namespace KickRateServer.Models
         [Required]
         [MaxLength(100)]
         public string Opponent { get; set; } = string.Empty;
-        
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
         
         public int CreatedByUserId { get; set; }
         public User? CreatedByUser { get; set; }
