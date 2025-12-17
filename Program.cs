@@ -95,9 +95,8 @@ app.MapGet("/users", async (AppDbContext db) =>
 app.MapGet("/games/next", async (AppDbContext db) =>
 {
     var nextGame = await db.Games
-        .Where(g => g.GameDate >= DateOnly.FromDateTime(DateTime.Now))
+        .Where(g => g.GameDate >= DateTime.Now)
         .OrderBy(g => g.GameDate)
-        .ThenBy(g => g.GameTime)
         .FirstOrDefaultAsync();
 
     if (nextGame == null)
@@ -109,7 +108,7 @@ app.MapGet("/games/next", async (AppDbContext db) =>
     {
         id = nextGame.Id,
         gameDate = nextGame.GameDate.ToString("yyyy-MM-dd"),
-        gameTime = nextGame.GameTime.ToString("HH:mm"),
+        gameTime = nextGame.GameDate.ToString("HH:mm"),
         location = nextGame.Location,
         opponent = nextGame.Opponent,
         createdByUserId = nextGame.CreatedByUserId
@@ -121,12 +120,11 @@ app.MapGet("/games", async (AppDbContext db) =>
 {
     var games = await db.Games
         .OrderBy(g => g.GameDate)
-        .ThenBy(g => g.GameTime)
         .Select(g => new
         {
             id = g.Id,
             gameDate = g.GameDate.ToString("yyyy-MM-dd"),
-            gameTime = g.GameTime.ToString("HH:mm"),
+            gameTime = g.GameDate.ToString("HH:mm"),
             location = g.Location,
             opponent = g.Opponent,
             createdByUserId = g.CreatedByUserId,
@@ -140,27 +138,37 @@ app.MapGet("/games", async (AppDbContext db) =>
 // יצירת משחק
 app.MapPost("/games", async (CreateGameDto dto, AppDbContext db) =>
 {
-    var game = new Game
+    try
     {
-        GameDate = DateOnly.Parse(dto.GameDate),
-        GameTime = TimeOnly.Parse(dto.GameTime),
-        Location = dto.Location,
-        Opponent = dto.Opponent,
-        CreatedByUserId = dto.CreatedByUserId
-    };
+        // שילוב התאריך והשעה ל-DateTime אחד
+        var gameDateTime = DateTime.Parse($"{dto.GameDate} {dto.GameTime}");
+        
+        var game = new Game
+        {
+            GameDate = gameDateTime,
+            Location = dto.Location,
+            Opponent = dto.Opponent,
+            CreatedByUserId = dto.CreatedByUserId,
+            CreatedAt = DateTime.Now
+        };
 
-    db.Games.Add(game);
-    await db.SaveChangesAsync();
+        db.Games.Add(game);
+        await db.SaveChangesAsync();
 
-    return Results.Created($"/games/{game.Id}", new
+        return Results.Created($"/games/{game.Id}", new
+        {
+            id = game.Id,
+            gameDate = game.GameDate.ToString("yyyy-MM-dd"),
+            gameTime = game.GameDate.ToString("HH:mm"),
+            location = game.Location,
+            opponent = game.Opponent,
+            createdByUserId = game.CreatedByUserId
+        });
+    }
+    catch (Exception ex)
     {
-        id = game.Id,
-        gameDate = game.GameDate.ToString("yyyy-MM-dd"),
-        gameTime = game.GameTime.ToString("HH:mm"),
-        location = game.Location,
-        opponent = game.Opponent,
-        createdByUserId = game.CreatedByUserId
-    });
+        return Results.BadRequest(new { message = $"שגיאה ביצירת משחק: {ex.Message}" });
+    }
 });
 
 app.Run();
