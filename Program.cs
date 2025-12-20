@@ -46,10 +46,14 @@ app.MapPost("/auth/register", async (RegisterDto dto, AppDbContext db) =>
 
     var passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
 
+    // ✅ אם המשתמש הוא "roie", הגדר אותו כ-Admin
+    var isAdmin = dto.Username.ToLower() == "roie";
+
     var user = new User
     {
         Username = dto.Username,
         PasswordHash = passwordHash,
+        IsAdmin = isAdmin,
         CreatedAt = DateTime.Now
     };
 
@@ -60,6 +64,7 @@ app.MapPost("/auth/register", async (RegisterDto dto, AppDbContext db) =>
     {
         id = user.Id,
         username = user.Username,
+        isAdmin = user.IsAdmin,
         message = "ההרשמה בוצעה בהצלחה"
     });
 });
@@ -74,10 +79,12 @@ app.MapPost("/auth/login", async (LoginDto dto, AppDbContext db) =>
         return Results.BadRequest(new { message = "שם משתמש או סיסמה שגויים" });
     }
 
+    // ✅ החזר גם את הסטטוס Admin
     return Results.Ok(new
     {
         id = user.Id,
         username = user.Username,
+        isAdmin = user.IsAdmin,
         message = "התחברת בהצלחה"
     });
 });
@@ -86,7 +93,7 @@ app.MapPost("/auth/login", async (LoginDto dto, AppDbContext db) =>
 app.MapGet("/users", async (AppDbContext db) =>
 {
     var users = await db.Users
-        .Select(u => new { u.Id, u.Username, u.CreatedAt })
+        .Select(u => new { u.Id, u.Username, u.IsAdmin, u.CreatedAt })
         .ToListAsync();
     return Results.Ok(users);
 });
