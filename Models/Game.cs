@@ -8,10 +8,7 @@ namespace KickRateServer.Models
         public int Id { get; set; }
         
         [Required]
-        public DateOnly GameDate { get; set; }
-        
-        [Required]
-        public TimeOnly GameTime { get; set; }
+        public DateTime GameDate { get; set; }
         
         [Required]
         [MaxLength(200)]

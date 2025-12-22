@@ -5,13 +5,6 @@ using KickRateServer.DTOs;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ הגדרת הפורט מ-Environment Variable (חשוב ל-Render)
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(int.Parse(port));
-});
-
 // שימוש ב-SQLite
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=kickrate.db"));
@@ -35,18 +28,13 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
 }
 
-// ✅ תמיד הצג Swagger (גם בפרודקשן)
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseCors("AllowAll");
-
-// ✅ עמוד בית פשוט
-app.MapGet("/", () => Results.Ok(new { 
-    message = "KickRate Server is running!", 
-    status = "OK",
-    timestamp = DateTime.Now 
-}));
 
 // הרשמה
 app.MapPost("/auth/register", async (RegisterDto dto, AppDbContext db) =>
@@ -58,10 +46,14 @@ app.MapPost("/auth/register", async (RegisterDto dto, AppDbContext db) =>
 
     var passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
 
+    // ✅ אם המשתמש הוא "roie", הגדר אותו כ-Admin
+    var isAdmin = dto.Username.ToLower() == "roie";
+
     var user = new User
     {
         Username = dto.Username,
         PasswordHash = passwordHash,
+        IsAdmin = isAdmin,
         CreatedAt = DateTime.Now
     };
 
@@ -72,6 +64,7 @@ app.MapPost("/auth/register", async (RegisterDto dto, AppDbContext db) =>
     {
         id = user.Id,
         username = user.Username,
+        isAdmin = user.IsAdmin,
         message = "ההרשמה בוצעה בהצלחה"
     });
 });
@@ -86,10 +79,12 @@ app.MapPost("/auth/login", async (LoginDto dto, AppDbContext db) =>
         return Results.BadRequest(new { message = "שם משתמש או סיסמה שגויים" });
     }
 
+    // ✅ החזר גם את הסטטוס Admin
     return Results.Ok(new
     {
         id = user.Id,
         username = user.Username,
+        isAdmin = user.IsAdmin,
         message = "התחברת בהצלחה"
     });
 });
@@ -98,19 +93,17 @@ app.MapPost("/auth/login", async (LoginDto dto, AppDbContext db) =>
 app.MapGet("/users", async (AppDbContext db) =>
 {
     var users = await db.Users
-        .Select(u => new { u.Id, u.Username, u.CreatedAt })
+        .Select(u => new { u.Id, u.Username, u.IsAdmin, u.CreatedAt })
         .ToListAsync();
     return Results.Ok(users);
 });
 
-// המשחק הבא
+// ✅ המשחק הבא - ללא circular reference
 app.MapGet("/games/next", async (AppDbContext db) =>
 {
     var nextGame = await db.Games
-        .Include(g => g.CreatedByUser)
-        .Where(g => g.GameDate >= DateOnly.FromDateTime(DateTime.Now))
+        .Where(g => g.GameDate >= DateTime.Now)
         .OrderBy(g => g.GameDate)
-        .ThenBy(g => g.GameTime)
         .FirstOrDefaultAsync();
 
     if (nextGame == null)
@@ -122,50 +115,87 @@ app.MapGet("/games/next", async (AppDbContext db) =>
     {
         id = nextGame.Id,
         gameDate = nextGame.GameDate.ToString("yyyy-MM-dd"),
-        gameTime = nextGame.GameTime.ToString("HH:mm"),
+        gameTime = nextGame.GameDate.ToString("HH:mm"),
         location = nextGame.Location,
         opponent = nextGame.Opponent,
         createdByUserId = nextGame.CreatedByUserId
     });
 });
 
-// כל המשחקים
+// ✅ כל המשחקים - ללא circular reference
 app.MapGet("/games", async (AppDbContext db) =>
 {
     var games = await db.Games
-        .Include(g => g.CreatedByUser)
         .OrderBy(g => g.GameDate)
-        .ThenBy(g => g.GameTime)
+        .Select(g => new
+        {
+            id = g.Id,
+            gameDate = g.GameDate.ToString("yyyy-MM-dd"),
+            gameTime = g.GameDate.ToString("HH:mm"),
+            location = g.Location,
+            opponent = g.Opponent,
+            createdByUserId = g.CreatedByUserId,
+            createdAt = g.CreatedAt
+        })
         .ToListAsync();
 
     return Results.Ok(games);
 });
 
+// ✅ משחקים שעברו - רק תאריכים בעבר
+app.MapGet("/games/past", async (AppDbContext db) =>
+{
+    var pastGames = await db.Games
+        .Where(g => g.GameDate < DateTime.Now)
+        .OrderByDescending(g => g.GameDate) // החדשים ביותר ראשון
+        .Select(g => new
+        {
+            id = g.Id,
+            gameDate = g.GameDate.ToString("yyyy-MM-dd"),
+            gameTime = g.GameDate.ToString("HH:mm"),
+            location = g.Location,
+            opponent = g.Opponent,
+            createdByUserId = g.CreatedByUserId
+        })
+        .ToListAsync();
+
+    return Results.Ok(pastGames);
+});
+
 // יצירת משחק
 app.MapPost("/games", async (CreateGameDto dto, AppDbContext db) =>
 {
-    var game = new Game
+    try
     {
-        GameDate = DateOnly.Parse(dto.GameDate),
-        GameTime = TimeOnly.Parse(dto.GameTime),
-        Location = dto.Location,
-        Opponent = dto.Opponent,
-        CreatedByUserId = dto.CreatedByUserId
-    };
+        // שילוב התאריך והשעה ל-DateTime אחד
+        var gameDateTime = DateTime.Parse($"{dto.GameDate} {dto.GameTime}");
+        
+        var game = new Game
+        {
+            GameDate = gameDateTime,
+            Location = dto.Location,
+            Opponent = dto.Opponent,
+            CreatedByUserId = dto.CreatedByUserId,
+            CreatedAt = DateTime.Now
+        };
 
-    db.Games.Add(game);
-    await db.SaveChangesAsync();
+        db.Games.Add(game);
+        await db.SaveChangesAsync();
 
-    return Results.Created($"/games/{game.Id}", new
+        return Results.Created($"/games/{game.Id}", new
+        {
+            id = game.Id,
+            gameDate = game.GameDate.ToString("yyyy-MM-dd"),
+            gameTime = game.GameDate.ToString("HH:mm"),
+            location = game.Location,
+            opponent = game.Opponent,
+            createdByUserId = game.CreatedByUserId
+        });
+    }
+    catch (Exception ex)
     {
-        id = game.Id,
-        gameDate = game.GameDate.ToString("yyyy-MM-dd"),
-        gameTime = game.GameTime.ToString("HH:mm"),
-        location = game.Location,
-        opponent = game.Opponent,
-        createdByUserId = game.CreatedByUserId
-    });
+        return Results.BadRequest(new { message = $"שגיאה ביצירת משחק: {ex.Message}" });
+    }
 });
 
-Console.WriteLine($"🚀 Server starting on port {port}");
 app.Run();
