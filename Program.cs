@@ -142,6 +142,26 @@ app.MapGet("/games", async (AppDbContext db) =>
     return Results.Ok(games);
 });
 
+// ✅ משחקים שעברו - רק תאריכים בעבר
+app.MapGet("/games/past", async (AppDbContext db) =>
+{
+    var pastGames = await db.Games
+        .Where(g => g.GameDate < DateTime.Now)
+        .OrderByDescending(g => g.GameDate)
+        .Select(g => new
+        {
+            id = g.Id,
+            gameDate = g.GameDate.ToString("yyyy-MM-dd"),
+            gameTime = g.GameDate.ToString("HH:mm"),
+            location = g.Location,
+            opponent = g.Opponent,
+            createdByUserId = g.CreatedByUserId
+        })
+        .ToListAsync();
+
+    return Results.Ok(pastGames);
+});
+
 // יצירת משחק
 app.MapPost("/games", async (CreateGameDto dto, AppDbContext db) =>
 {
