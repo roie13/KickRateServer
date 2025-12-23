@@ -9,6 +9,7 @@ namespace KickRateServer.Data
 
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<Game> Games { get; set; } = null!;
+        public DbSet<Rating> Ratings { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

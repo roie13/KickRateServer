@@ -147,7 +147,7 @@ app.MapGet("/games/past", async (AppDbContext db) =>
 {
     var pastGames = await db.Games
         .Where(g => g.GameDate < DateTime.Now)
-        .OrderByDescending(g => g.GameDate) // החדשים ביותר ראשון
+        .OrderByDescending(g => g.GameDate)
         .Select(g => new
         {
             id = g.Id,
@@ -169,7 +169,7 @@ app.MapPost("/games", async (CreateGameDto dto, AppDbContext db) =>
     {
         // שילוב התאריך והשעה ל-DateTime אחד
         var gameDateTime = DateTime.Parse($"{dto.GameDate} {dto.GameTime}");
-        
+
         var game = new Game
         {
             GameDate = gameDateTime,
@@ -198,4 +198,91 @@ app.MapPost("/games", async (CreateGameDto dto, AppDbContext db) =>
     }
 });
 
+// ✅ קבלת כל השחקנים עם ממוצע דירוג
+app.MapGet("/players", async (AppDbContext db) =>
+{
+    var players = await db.Users
+        .Select(u => new
+        {
+            id = u.Id,
+            username = u.Username,
+            averageRating = db.Ratings
+                .Where(r => r.RatedUserId == u.Id)
+                .Average(r => (double?)r.Stars) ?? 0.0,
+            totalRatings = db.Ratings
+                .Count(r => r.RatedUserId == u.Id)
+        })
+        .OrderByDescending(u => u.averageRating)
+        .ToListAsync();
+
+    return Results.Ok(players);
+});
+
+// ✅ שמירת או עדכון דירוג
+app.MapPost("/ratings", async (RatingDto dto, AppDbContext db) =>
+{
+    // בדיקה שלא מדרגים את עצמך
+    if (dto.RaterUserId == dto.RatedUserId)
+    {
+        return Results.BadRequest(new { message = "לא ניתן לדרג את עצמך" });
+    }
+
+    // בדיקה שהמשתמשים קיימים
+    var raterExists = await db.Users.AnyAsync(u => u.Id == dto.RaterUserId);
+    var ratedExists = await db.Users.AnyAsync(u => u.Id == dto.RatedUserId);
+
+    if (!raterExists || !ratedExists)
+    {
+        return Results.BadRequest(new { message = "משתמש לא קיים" });
+    }
+
+    // בדיקה אם כבר יש דירוג
+    var existingRating = await db.Ratings
+        .FirstOrDefaultAsync(r => r.RaterUserId == dto.RaterUserId && r.RatedUserId == dto.RatedUserId);
+
+    if (existingRating != null)
+    {
+        // עדכן דירוג קיים
+        existingRating.Stars = dto.Stars;
+        existingRating.UpdatedAt = DateTime.Now;
+    }
+    else
+    {
+        // צור דירוג חדש
+        var rating = new Rating
+        {
+            RaterUserId = dto.RaterUserId,
+            RatedUserId = dto.RatedUserId,
+            Stars = dto.Stars,
+            CreatedAt = DateTime.Now,
+            UpdatedAt = DateTime.Now
+        };
+        db.Ratings.Add(rating);
+    }
+
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { message = "הדירוג נשמר בהצלחה" });
+});
+
+// ✅ קבלת הדירוג שנתתי למשתמש מסוים
+app.MapGet("/ratings/{raterUserId}/{ratedUserId}", async (int raterUserId, int ratedUserId, AppDbContext db) =>
+{
+    var rating = await db.Ratings
+        .FirstOrDefaultAsync(r => r.RaterUserId == raterUserId && r.RatedUserId == ratedUserId);
+
+    if (rating == null)
+    {
+        return Results.Ok(new { stars = 0 });
+    }
+
+    return Results.Ok(new { stars = rating.Stars });
+});
+
 app.Run();
+
+// DTOs
+public record LoginDto(string Username, string Password);
+public record RegisterDto(string Username, string Password);
+public record CreateGameDto(string GameDate, string GameTime, string Location, string Opponent, int CreatedByUserId);
+public record RatingDto(int RaterUserId, int RatedUserId, int Stars);
