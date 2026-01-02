@@ -18,6 +18,13 @@ namespace KickRateServer.Models
         [MaxLength(100)]
         public string Opponent { get; set; } = string.Empty;
         
+        // ✅ תוצאות משחק
+        public int? GoalsFor { get; set; }
+        public int? GoalsAgainst { get; set; }
+        
+        [MaxLength(20)]
+        public string? Result { get; set; } // "win", "draw", "loss"
+        
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         
         public int CreatedByUserId { get; set; }

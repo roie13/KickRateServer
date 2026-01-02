@@ -98,7 +98,7 @@ app.MapGet("/users", async (AppDbContext db) =>
     return Results.Ok(users);
 });
 
-// ✅ המשחק הבא - ללא circular reference
+// ✅ המשחק הבא - עם תוצאות
 app.MapGet("/games/next", async (AppDbContext db) =>
 {
     var nextGame = await db.Games
@@ -118,11 +118,14 @@ app.MapGet("/games/next", async (AppDbContext db) =>
         gameTime = nextGame.GameDate.ToString("HH:mm"),
         location = nextGame.Location,
         opponent = nextGame.Opponent,
+        goalsFor = nextGame.GoalsFor,
+        goalsAgainst = nextGame.GoalsAgainst,
+        result = nextGame.Result,
         createdByUserId = nextGame.CreatedByUserId
     });
 });
 
-// ✅ כל המשחקים - ללא circular reference
+// ✅ כל המשחקים - עם תוצאות
 app.MapGet("/games", async (AppDbContext db) =>
 {
     var games = await db.Games
@@ -134,6 +137,9 @@ app.MapGet("/games", async (AppDbContext db) =>
             gameTime = g.GameDate.ToString("HH:mm"),
             location = g.Location,
             opponent = g.Opponent,
+            goalsFor = g.GoalsFor,
+            goalsAgainst = g.GoalsAgainst,
+            result = g.Result,
             createdByUserId = g.CreatedByUserId,
             createdAt = g.CreatedAt
         })
@@ -142,7 +148,7 @@ app.MapGet("/games", async (AppDbContext db) =>
     return Results.Ok(games);
 });
 
-// ✅ משחקים שעברו - רק תאריכים בעבר
+// ✅ משחקים שעברו - עם תוצאות
 app.MapGet("/games/past", async (AppDbContext db) =>
 {
     var pastGames = await db.Games
@@ -155,6 +161,9 @@ app.MapGet("/games/past", async (AppDbContext db) =>
             gameTime = g.GameDate.ToString("HH:mm"),
             location = g.Location,
             opponent = g.Opponent,
+            goalsFor = g.GoalsFor,
+            goalsAgainst = g.GoalsAgainst,
+            result = g.Result,
             createdByUserId = g.CreatedByUserId
         })
         .ToListAsync();
@@ -196,6 +205,46 @@ app.MapPost("/games", async (CreateGameDto dto, AppDbContext db) =>
     {
         return Results.BadRequest(new { message = $"שגיאה ביצירת משחק: {ex.Message}" });
     }
+});
+
+// ✅ עדכון תוצאות משחק (Admin בלבד)
+app.MapPut("/games/{gameId}/result", async (int gameId, UpdateGameResultDto dto, AppDbContext db) =>
+{
+    var game = await db.Games.FindAsync(gameId);
+
+    if (game == null)
+    {
+        return Results.NotFound(new { message = "משחק לא נמצא" });
+    }
+
+    // עדכן תוצאות
+    game.GoalsFor = dto.GoalsFor;
+    game.GoalsAgainst = dto.GoalsAgainst;
+
+    // חשב תוצאה
+    if (dto.GoalsFor > dto.GoalsAgainst)
+    {
+        game.Result = "win";
+    }
+    else if (dto.GoalsFor < dto.GoalsAgainst)
+    {
+        game.Result = "loss";
+    }
+    else
+    {
+        game.Result = "draw";
+    }
+
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new
+    {
+        id = game.Id,
+        goalsFor = game.GoalsFor,
+        goalsAgainst = game.GoalsAgainst,
+        result = game.Result,
+        message = "התוצאה עודכנה בהצלחה"
+    });
 });
 
 // ✅ קבלת כל השחקנים עם ממוצע דירוג
@@ -286,3 +335,4 @@ public record LoginDto(string Username, string Password);
 public record RegisterDto(string Username, string Password);
 public record CreateGameDto(string GameDate, string GameTime, string Location, string Opponent, int CreatedByUserId);
 public record RatingDto(int RaterUserId, int RatedUserId, int Stars);
+public record UpdateGameResultDto(int GoalsFor, int GoalsAgainst);
