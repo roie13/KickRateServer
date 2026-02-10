@@ -26,4 +26,3 @@ namespace KickRateServer.Models
         public DateTime UpdatedAt { get; set; } = DateTime.Now;
     }
 }
-`

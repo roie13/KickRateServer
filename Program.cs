@@ -191,7 +191,13 @@ app.MapPost("/games", async (CreateGameDto dto, AppDbContext db) =>
         db.Games.Add(game);
         await db.SaveChangesAsync();
 
-    return Results.Created($"/games/{game.Id}", game);
-});
+        return Results.Created($"/games/{game.Id}", game);
+    }
+    catch (FormatException)
+    {
+        return Results.BadRequest(new { message = "פורמט תאריך או שעה שגוי" });
+    }
+}
+);
 
 app.Run();
