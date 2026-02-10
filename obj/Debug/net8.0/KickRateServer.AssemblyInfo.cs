@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("KickRateServer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9500dbfc7dda157f0e5bdbbf7a679bfe7d45fa49")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3fa7907e56e8bb464f05fcaa073b1917b2ee47a7")]
 [assembly: System.Reflection.AssemblyProductAttribute("KickRateServer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("KickRateServer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
