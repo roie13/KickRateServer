@@ -5,6 +5,12 @@ using KickRateServer.DTOs;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ✅ הגדרת האזנה על כל ה-IPs
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ListenAnyIP(8080);
+});
+
 // שימוש ב-SQLite
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=kickrate.db"));
@@ -328,6 +334,7 @@ app.MapGet("/ratings/{raterUserId}/{ratedUserId}", async (int raterUserId, int r
     return Results.Ok(new { stars = rating.Stars });
 });
 
+Console.WriteLine("🚀 Server starting on port 8080...");
 app.Run();
 
 // DTOs
