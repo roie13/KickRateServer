@@ -293,6 +293,50 @@ app.MapGet("/ratings/{raterUserId}/{ratedUserId}", async (int raterUserId, int r
 
     return Results.Ok(new { stars = rating.Stars });
 });
+// ✅ קבלת סטטוס הגעה
+app.MapGet("/attendance/{gameId}/{userId}", async (int gameId, int userId, AppDbContext db) =>
+{
+    var attendance = await db.Attendances
+        .FirstOrDefaultAsync(a => a.GameId == gameId && a.UserId == userId);
+
+    return Results.Ok(new { isAttending = attendance?.IsAttending ?? false });
+});
+
+// ✅ עדכון סטטוס הגעה
+app.MapPost("/attendance", async (AttendanceDto dto, AppDbContext db) =>
+{
+    var existing = await db.Attendances
+        .FirstOrDefaultAsync(a => a.GameId == dto.GameId && a.UserId == dto.UserId);
+
+    if (existing != null)
+    {
+        existing.IsAttending = dto.IsAttending;
+        existing.UpdatedAt = DateTime.Now;
+    }
+    else
+    {
+        db.Attendances.Add(new Attendance
+        {
+            GameId = dto.GameId,
+            UserId = dto.UserId,
+            IsAttending = dto.IsAttending,
+            CreatedAt = DateTime.Now,
+            UpdatedAt = DateTime.Now
+        });
+    }
+
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = "עודכן בהצלחה" });
+});
+
+// ✅ כמה אנשים מגיעים
+app.MapGet("/attendance/{gameId}/count", async (int gameId, AppDbContext db) =>
+{
+    var count = await db.Attendances
+        .CountAsync(a => a.GameId == gameId && a.IsAttending == true);
+
+    return Results.Ok(new { count });
+});
 
 Console.WriteLine("🚀 Server starting on port 8080...");
 app.Run();
@@ -303,3 +347,4 @@ public record RegisterDto(string Username, string Password);
 public record CreateGameDto(string GameDate, string GameTime, string Location, string Opponent, int CreatedByUserId);
 public record RatingDto(int RaterUserId, int RatedUserId, int Stars);
 public record UpdateGameResultDto(int GoalsFor, int GoalsAgainst);
+public record AttendanceDto(int GameId, int UserId, bool IsAttending);
