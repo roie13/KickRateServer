@@ -11,7 +11,7 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=kickrate.db"));
+    options.UseSqlite("Data Source=/data/kickrate.db"));
 
 builder.Services.AddCors(options =>
 {
